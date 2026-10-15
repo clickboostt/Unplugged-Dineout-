@@ -1,0 +1,567 @@
+#!/usr/bin/env python3
+"""
+create_and_deploy.py  --  ONE file that creates the Unplugged Dineout demo website
+and deploys it to GitHub Pages.
+
+Requirements: Python 3, git, and GitHub CLI (gh) logged in:  gh auth login
+Usage:        python3 create_and_deploy.py YOUR_GITHUB_USERNAME [repo-name]
+Live site:    https://YOUR_GITHUB_USERNAME.github.io/repo-name/
+
+To only create the site locally (no deploy), add --no-deploy.
+"""
+import os, sys, math, random, subprocess, shutil
+
+HTML = r'''<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unplugged Dineout | Rooftop Cafe in Patna</title>
+<meta name="description" content="Discover Unplugged Dineout in Patna, Bihar. Explore rooftop and outdoor seating, coffee, desserts, tea, live music, and convenient ways to contact the cafe.">
+<meta name="theme-color" content="#171916">
+<meta property="og:title" content="Unplugged Dineout | Rooftop Cafe in Patna">
+<meta property="og:description" content="Rooftop and outdoor seating, coffee, desserts, tea and live music in Patna, Bihar.">
+<meta property="og:type" content="website">
+<link rel="icon" href="images/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --charcoal:#171916; --espresso:#46352B; --gold:#D8B477; --cream:#F6F0E7; --olive:#6F7456;
+  --serif:'Cormorant Garamond','Playfair Display',Georgia,serif;
+  --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,'Noto Sans Devanagari',sans-serif;
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{font-family:var(--sans);background:var(--cream);color:var(--charcoal);line-height:1.65;font-size:16px;-webkit-font-smoothing:antialiased}
+body.lock{overflow:hidden}
+img{display:block;max-width:100%}
+a{color:inherit}
+.wrap{width:min(1180px,100% - 40px);margin-inline:auto}
+.skip{position:absolute;left:-999px;top:8px;background:var(--gold);color:var(--charcoal);padding:8px 14px;z-index:100;border-radius:6px}
+.skip:focus{left:8px}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:14px 26px;border-radius:999px;font-weight:600;font-size:.95rem;letter-spacing:.02em;text-decoration:none;border:1.5px solid transparent;transition:transform .3s var(--ease),background .3s,color .3s,border-color .3s;cursor:pointer;min-height:48px}
+.btn:hover{transform:translateY(-2px)}
+.btn--sm{padding:9px 18px;min-height:40px;font-size:.88rem}
+.btn--gold{background:var(--gold);color:var(--charcoal)}
+.btn--gold:hover{background:#e6c68f}
+.btn--ghost{border-color:rgba(246,240,231,.7);color:var(--cream);background:transparent}
+.btn--ghost:hover{background:var(--cream);color:var(--charcoal)}
+.btn--wa{background:#1f7a4d;color:#fff}
+.btn--wa:hover{background:#25925b}
+.actions{display:flex;flex-wrap:wrap;gap:14px;margin-top:28px}
+.actions--center{justify-content:center}
+
+/* Nav */
+.nav{position:fixed;inset:0 0 auto 0;z-index:50;color:var(--cream);transition:background .35s,box-shadow .35s}
+.nav--solid{background:rgba(23,25,22,.94);backdrop-filter:blur(10px);box-shadow:0 1px 0 rgba(216,180,119,.18)}
+.nav__in{display:flex;align-items:center;justify-content:space-between;height:72px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--gold)}
+.brand__icon{width:30px;height:30px}
+.brand__txt{font-family:var(--serif);font-size:1.5rem;font-weight:600;color:var(--cream);letter-spacing:.01em}
+.brand__txt em{color:var(--gold);font-style:italic}
+.nav__links{display:flex;align-items:center;gap:26px}
+.nav__links>a{text-decoration:none;font-size:.9rem;opacity:.9;position:relative}
+.nav__links>a::after{content:"";position:absolute;left:0;bottom:-4px;height:1px;width:0;background:var(--gold);transition:width .3s var(--ease)}
+.nav__links>a:hover::after{width:100%}
+.nav__cta{display:flex;gap:10px;margin-left:8px}
+.burger{display:none;background:none;border:0;width:44px;height:44px;cursor:pointer;flex-direction:column;justify-content:center;align-items:center;gap:6px}
+.burger span{display:block;width:24px;height:2px;background:var(--cream);transition:transform .3s,opacity .3s}
+.burger[aria-expanded="true"] span:nth-child(1){transform:translateY(8px) rotate(45deg)}
+.burger[aria-expanded="true"] span:nth-child(2){opacity:0}
+.burger[aria-expanded="true"] span:nth-child(3){transform:translateY(-8px) rotate(-45deg)}
+
+/* Hero / shared overlays */
+.hero{position:relative;min-height:100svh;display:flex;align-items:center;color:var(--cream);overflow:hidden;background:var(--charcoal)}
+.hero__bg,.cta__bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.hero__shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(23,25,22,.45),rgba(23,25,22,.65))}
+.hero__in{position:relative;padding:120px 0 90px}
+.eyebrow{font-size:.78rem;letter-spacing:.28em;color:var(--gold);font-weight:600;margin-bottom:18px}
+.eyebrow--dark{color:#8a6a30}
+h1,h2,h3{font-family:var(--serif);font-weight:600;line-height:1.08}
+h1{font-size:clamp(2.8rem,7.5vw,5.6rem);max-width:12ch}
+h1 em{color:var(--gold)}
+h2{font-size:clamp(2rem,4.5vw,3.2rem)}
+.lead{max-width:56ch;margin-top:22px;font-size:1.1rem;opacity:.92}
+.hero__tag{margin-top:44px;font-size:.85rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gold)}
+.hero__tag span{opacity:.6;margin:0 8px}
+
+/* Sections */
+.section{padding:clamp(70px,10vw,130px) 0}
+.section--dark{background:var(--charcoal);color:var(--cream)}
+.section--espresso{background:var(--espresso);color:var(--cream)}
+.head{margin-bottom:48px}
+.head h2{max-width:20ch}
+.sub{margin-top:12px;opacity:.8}
+.note{margin-top:28px;font-size:.85rem;opacity:.75;text-align:center}
+.note--left{text-align:left;margin-top:18px}
+
+/* Intro */
+.split{display:grid;grid-template-columns:1.05fr 1fr;gap:clamp(30px,6vw,90px);align-items:center}
+.split__img{border-radius:220px 220px 14px 14px;overflow:hidden;aspect-ratio:4/5;background:var(--charcoal)}
+.split__img img{width:100%;height:100%;object-fit:cover}
+.split__txt h2{margin-bottom:18px}
+.split__txt>p{max-width:52ch;color:#3b3b36}
+.pillars{list-style:none;margin-top:34px;display:grid;gap:22px}
+.pillars li{display:flex;gap:18px;align-items:flex-start;padding-top:20px;border-top:1px solid rgba(70,53,43,.25)}
+.pillars__n{font-family:var(--serif);font-size:1.6rem;color:#8a6a30;line-height:1}
+.pillars h3{font-size:1.45rem;margin-bottom:2px}
+.pillars p{font-size:.95rem;color:#4a4a44}
+
+/* Cards */
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:26px}
+.card{background:rgba(246,240,231,.05);border:1px solid rgba(216,180,119,.2);border-radius:14px;overflow:hidden;transition:transform .4s var(--ease),border-color .4s}
+.card:hover{transform:translateY(-6px);border-color:rgba(216,180,119,.55)}
+.card__img{aspect-ratio:4/5;overflow:hidden}
+.card__img img,.mcat img,.g img{width:100%;height:100%;object-fit:cover;transition:transform .8s var(--ease)}
+.card:hover img{transform:scale(1.06)}
+.card__body{padding:24px 24px 28px}
+.card__body h3{font-size:1.6rem;margin-bottom:8px;color:var(--gold)}
+.card__body p{opacity:.88;font-size:.95rem}
+
+/* Menu */
+.menu{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+.mcat{position:relative;aspect-ratio:3/4;border-radius:14px;overflow:hidden;display:block;text-decoration:none;color:var(--cream);background:var(--charcoal)}
+.mcat::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(23,25,22,.85))}
+.mcat span{position:absolute;left:20px;right:20px;bottom:18px;z-index:2;font-family:var(--serif);font-size:1.7rem;line-height:1.1}
+.mcat:hover img{transform:scale(1.07)}
+.menu__cta{margin-top:48px;text-align:center;display:grid;gap:14px;justify-items:center}
+.menu__cta p{font-family:var(--serif);font-size:1.5rem;font-style:italic}
+.menu__cta small{color:#5a5a52}
+
+/* Gallery */
+.gal{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:210px;gap:16px}
+.g{position:relative;overflow:hidden;border-radius:12px;margin:0}
+.g--tall{grid-row:span 2}
+.g--wide{grid-column:span 2}
+.g figcaption{position:absolute;left:14px;bottom:12px;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--cream);text-shadow:0 1px 8px rgba(0,0,0,.7)}
+.g:hover img{transform:scale(1.05)}
+
+/* Services */
+.svc{list-style:none;display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.svc li{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:30px 16px;background:#fff8ee;border:1px solid rgba(70,53,43,.14);border-radius:14px;font-weight:500;transition:transform .3s var(--ease),box-shadow .3s}
+.svc li:hover{transform:translateY(-4px);box-shadow:0 14px 30px rgba(70,53,43,.12)}
+.svc svg{width:34px;height:34px;fill:none;stroke:#8a6a30;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+
+/* Visit */
+.visit{display:grid;grid-template-columns:1.2fr 1fr;gap:clamp(30px,6vw,80px);align-items:center}
+.visit h2{margin-bottom:22px}
+address{font-style:normal;font-size:1.15rem;line-height:1.8}
+.phone{margin-top:14px}
+.phone a{color:var(--gold);font-weight:600;text-decoration:none}
+.mapcard{border:1px solid rgba(216,180,119,.4);border-radius:16px;padding:44px 30px;text-align:center;background:rgba(23,25,22,.35)}
+.mapcard svg{width:46px;height:46px;fill:none;stroke:var(--gold);stroke-width:1.4;margin-bottom:12px}
+
+/* CTA */
+.cta{position:relative;color:var(--cream);text-align:center;padding:clamp(90px,14vw,170px) 0;overflow:hidden;background:var(--charcoal)}
+.cta__in{position:relative}
+.cta h2{max-width:18ch;margin-inline:auto}
+.cta .lead{margin-inline:auto}
+
+/* Footer */
+.foot{background:var(--charcoal);color:rgba(246,240,231,.85);padding-top:64px;font-size:.92rem}
+.foot__in{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:40px;padding-bottom:40px}
+.foot__brand{font-family:var(--serif);font-size:1.8rem;color:var(--gold)}
+.foot__hi{margin-bottom:12px}
+.foot p{margin-bottom:8px}
+.foot a{text-decoration:none}
+.foot nav{display:flex;flex-direction:column;gap:8px}
+.foot nav a:hover{color:var(--gold)}
+.foot__act{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.foot__bar{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;border-top:1px solid rgba(246,240,231,.14);padding:20px 0 28px;font-size:.8rem;opacity:.7}
+
+/* Mobile bar */
+.mbar{display:none}
+
+/* Reveal */
+.reveal{opacity:0;transform:translateY(22px);transition:opacity .9s var(--ease),transform .9s var(--ease)}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .reveal{opacity:1;transform:none;transition:none}
+  *{transition:none!important}
+}
+
+/* Tablet */
+@media (max-width:980px){
+  .cards{grid-template-columns:1fr}
+  .card{display:grid;grid-template-columns:1fr 1.2fr}
+  .card__img{aspect-ratio:auto;min-height:220px}
+  .menu{grid-template-columns:repeat(2,1fr)}
+  .svc{grid-template-columns:repeat(2,1fr)}
+  .gal{grid-template-columns:repeat(2,1fr);grid-auto-rows:190px}
+  .visit,.split{grid-template-columns:1fr}
+  .foot__in{grid-template-columns:1fr 1fr}
+}
+/* Mobile nav */
+@media (max-width:860px){
+  .burger{display:flex}
+  .nav__links{position:fixed;inset:72px 0 0 0;background:var(--charcoal);flex-direction:column;align-items:flex-start;gap:0;padding:20px 24px;transform:translateX(100%);transition:transform .4s var(--ease);overflow-y:auto}
+  .nav__links.is-open{transform:none}
+  .nav__links>a{font-family:var(--serif);font-size:1.9rem;padding:14px 0;width:100%;border-bottom:1px solid rgba(246,240,231,.1);opacity:1}
+  .nav__cta{margin:28px 0 0;flex-direction:column;width:100%}
+  .nav__cta .btn{width:100%}
+  .nav--solid,.nav{background:rgba(23,25,22,.94)}
+}
+@media (max-width:600px){
+  body{padding-bottom:64px}
+  .card{display:block}
+  .card__img{aspect-ratio:4/3}
+  .gal{grid-auto-rows:150px;gap:10px}
+  .foot__in{grid-template-columns:1fr}
+  .actions .btn{flex:1 1 100%}
+  .mbar{display:grid;grid-template-columns:1fr 1fr;position:fixed;inset:auto 0 0 0;z-index:60;background:var(--charcoal);border-top:1px solid rgba(216,180,119,.35);padding:8px 10px calc(8px + env(safe-area-inset-bottom));gap:8px}
+  .mbar a{display:flex;align-items:center;justify-content:center;min-height:46px;border-radius:999px;font-weight:600;text-decoration:none;background:var(--gold);color:var(--charcoal)}
+  .mbar .mbar__wa{background:#1f7a4d;color:#fff}
+}
+</style>
+<!-- Structured data: only details supplied as verified (name, address, phone). No hours, geo, ratings or social links. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CafeOrCoffeeShop",
+  "name": "Unplugged Dineout",
+  "alternateName": "कैफे अनप्लग्ड डाइनआउट",
+  "telephone": "+91 91557 72224",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "Anugrah Narayan Road, Congress Maidan Road, opposite Vidya Niketan School",
+    "addressLocality": "Patna",
+    "addressRegion": "Bihar",
+    "postalCode": "800003",
+    "addressCountry": "IN"
+  }
+}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav" id="nav">
+  <div class="wrap nav__in">
+    <a class="brand" href="#home" aria-label="Unplugged Dineout, home">
+      <svg class="brand__icon" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14.5" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M10 12h9v5a4.5 4.5 0 0 1-9 0v-5zm9 1.5h1.8a2.2 2.2 0 0 1 0 4.4H19" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M12.5 8.5c0 1 1 1 1 2m3-2c0 1 1 1 1 2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      <span class="brand__txt">Unplugged <em>Dineout</em></span>
+    </a>
+    <nav id="menu" class="nav__links" aria-label="Primary">
+      <a href="#home">Home</a>
+      <a href="#experience">Our Experience</a>
+      <a href="#menu-preview">Menu</a>
+      <a href="#gallery">Gallery</a>
+      <a href="#contact">Contact</a>
+      <div class="nav__cta">
+        <a class="btn btn--gold btn--sm" href="#visit">Visit Us</a>
+        <a class="btn btn--ghost btn--sm" href="tel:+919155772224">Call Now</a>
+      </div>
+    </nav>
+    <button class="burger" id="burger" aria-expanded="false" aria-controls="menu" aria-label="Open menu"><span></span><span></span><span></span></button>
+  </div>
+</header>
+
+<main id="main">
+<!-- Hero -->
+<section class="hero" id="home">
+  <img class="hero__bg" src="images/hero.svg" alt="Warm evening lights over a rooftop cafe (illustrative demo image)" fetchpriority="high">
+  <div class="hero__shade"></div>
+  <div class="wrap hero__in">
+    <p class="eyebrow">YOUR ROOFTOP CAFE IN PATNA</p>
+    <h1>Unwind. Connect.<br><em>Feel Unplugged.</em></h1>
+    <p class="lead">Great coffee, delightful desserts, rooftop vibes and memorable evenings — discover your next favourite place to dine in Patna.</p>
+    <div class="actions">
+      <a class="btn btn--gold" href="#experience">Explore Our Experience</a>
+      <a class="btn btn--ghost" href="tel:+919155772224">Call to Visit</a>
+    </div>
+    <p class="hero__tag">Unplugged Dineout <span>|</span> Patna, Bihar</p>
+  </div>
+</section>
+
+<!-- Intro -->
+<section class="section intro">
+  <div class="wrap split">
+    <figure class="split__img reveal"><img src="images/intro.svg" alt="Intimate cafe seating under warm lights (illustrative demo image)" loading="lazy"></figure>
+    <div class="split__txt reveal">
+      <p class="eyebrow eyebrow--dark">OUR STORY</p>
+      <h2>More Than Just a Cafe</h2>
+      <p>Step away from the everyday and enjoy good food, comforting coffee, and relaxed moments in a welcoming cafe atmosphere.</p>
+      <ul class="pillars">
+        <li><span class="pillars__n">01</span><div><h3>Rooftop Evenings</h3><p>Open-air seating for unhurried time with friends and family.</p></div></li>
+        <li><span class="pillars__n">02</span><div><h3>Coffee &amp; Desserts</h3><p>A place to pause over something warm and something sweet.</p></div></li>
+        <li><span class="pillars__n">03</span><div><h3>Live Music &amp; Good Vibes</h3><p>An atmosphere made for relaxed, memorable evenings.</p></div></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- Experience -->
+<section class="section section--dark" id="experience">
+  <div class="wrap">
+    <header class="head reveal"><p class="eyebrow">OUR EXPERIENCE</p><h2>Moments Worth Slowing Down For</h2></header>
+    <div class="cards">
+      <article class="card reveal"><div class="card__img"><img src="images/rooftop.svg" alt="Rooftop seating at dusk (illustrative demo image)" loading="lazy"></div><div class="card__body"><h3>Rooftop &amp; Outdoor Seating</h3><p>Enjoy a relaxed cafe atmosphere with rooftop and outdoor seating.</p></div></article>
+      <article class="card reveal"><div class="card__img"><img src="images/coffee.svg" alt="Coffee and dessert on a cafe table (illustrative demo image)" loading="lazy"></div><div class="card__body"><h3>Coffee, Tea &amp; Desserts</h3><p>Take a break over coffee, explore tea options, and treat yourself to something sweet.</p></div></article>
+      <article class="card reveal"><div class="card__img"><img src="images/music.svg" alt="Evening cafe ambience with soft lights (illustrative demo image)" loading="lazy"></div><div class="card__body"><h3>Live Music &amp; Evenings</h3><p>Make your cafe visit more memorable with the atmosphere of live music.</p></div></article>
+    </div>
+    <p class="note">Fireplace and live music details — please confirm with the cafe before visiting.</p>
+  </div>
+</section>
+
+<!-- Menu preview -->
+<section class="section" id="menu-preview">
+  <div class="wrap">
+    <header class="head reveal"><p class="eyebrow eyebrow--dark">MENU</p><h2>Something for Your Next Craving</h2><p class="sub">Explore the flavours and refreshments you love.</p></header>
+    <div class="menu">
+      <a class="mcat reveal" href="#visit"><img src="images/coffee.svg" alt="" loading="lazy"><span>Coffee</span></a>
+      <a class="mcat reveal" href="#visit"><img src="images/tea.svg" alt="" loading="lazy"><span>Tea</span></a>
+      <a class="mcat reveal" href="#visit"><img src="images/dessert.svg" alt="" loading="lazy"><span>Desserts</span></a>
+      <a class="mcat reveal" href="#visit"><img src="images/food.svg" alt="" loading="lazy"><span>Food &amp; Refreshments</span></a>
+    </div>
+    <div class="menu__cta reveal">
+      <p>Ask us for our latest menu and availability.</p>
+      <a class="btn btn--wa" data-wa="menu" href="https://wa.me/919155772224?text=Hello%20Unplugged%20Dineout%21%20I%20would%20like%20to%20know%20more%20about%20your%20menu%20and%20services." target="_blank" rel="noopener">Ask for Menu on WhatsApp</a>
+      <small>Demo concept: menu items and prices are not shown until supplied by the cafe.</small>
+    </div>
+  </div>
+</section>
+
+<!-- Gallery -->
+<section class="section section--dark" id="gallery">
+  <div class="wrap">
+    <header class="head reveal"><p class="eyebrow">GALLERY</p><h2>The Unplugged Atmosphere</h2></header>
+    <div class="gal">
+      <figure class="g g--tall reveal"><img src="images/g1.svg" alt="Rooftop seating (illustrative)" loading="lazy"><figcaption>Rooftop seating</figcaption></figure>
+      <figure class="g g--wide reveal"><img src="images/g2.svg" alt="Outdoor cafe ambience (illustrative)" loading="lazy"><figcaption>Outdoor ambience</figcaption></figure>
+      <figure class="g reveal"><img src="images/g3.svg" alt="Coffee preparation (illustrative)" loading="lazy"><figcaption>Coffee preparation</figcaption></figure>
+      <figure class="g reveal"><img src="images/g4.svg" alt="Desserts (illustrative)" loading="lazy"><figcaption>Desserts</figcaption></figure>
+      <figure class="g g--wide reveal"><img src="images/g5.svg" alt="Evening lights (illustrative)" loading="lazy"><figcaption>Evening lights</figcaption></figure>
+      <figure class="g g--tall reveal"><img src="images/g6.svg" alt="Live music atmosphere (illustrative)" loading="lazy"><figcaption>Live music atmosphere</figcaption></figure>
+    </div>
+    <p class="note">Illustrative demo imagery — to be replaced with the cafe's own photographs.</p>
+  </div>
+</section>
+
+<!-- Services -->
+<section class="section" id="services">
+  <div class="wrap">
+    <header class="head reveal"><p class="eyebrow eyebrow--dark">SERVICES &amp; ACCESSIBILITY</p><h2>Made for Every Kind of Cafe Moment</h2></header>
+    <ul class="svc">
+      <li class="reveal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 3c-2 1.5-3 4-3 7h3v11M17 3v7"/></svg>Dine-in</li>
+      <li class="reveal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1 12H6L5 8zM9 8a3 3 0 0 1 6 0"/></svg>Takeaway</li>
+      <li class="reveal"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><path d="M6 17l4-8h5l3 8M9 9H7"/></svg>Delivery</li>
+      <li class="reveal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7v9H3zM9 20v-6h6v6"/></svg>No-contact delivery</li>
+      <li class="reveal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15l2-6h14l2 6v4H3zM7 19v1M17 19v1M6 15h12"/></svg>Drive-through</li>
+      <li class="reveal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M4.5 7.5l2 2M19.5 7.5l-2 2M3 14h18M5 14v6M19 14v6M8 14a4 4 0 0 1 8 0"/></svg>Outdoor seating</li>
+      <li class="reveal"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="4.5" r="1.6"/><path d="M10 7v6h5l3 6M10 10h5M8 13a5 5 0 1 0 6 7"/></svg>Wheelchair-accessible seating</li>
+      <li class="reveal"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="4.5" r="1.6"/><path d="M10 7v6h5l3 6M10 10h5M8 13a5 5 0 1 0 6 7"/></svg>Wheelchair-accessible toilet</li>
+    </ul>
+  </div>
+</section>
+
+<!-- Visit -->
+<section class="section section--espresso" id="visit">
+  <div class="wrap visit">
+    <div class="reveal">
+      <p class="eyebrow">VISIT US</p>
+      <h2>Find Your Unplugged Moment</h2>
+      <address>
+        <strong>Unplugged Dineout</strong><br>
+        Anugrah Narayan Road, Congress Maidan Road,<br>
+        Opposite Vidya Niketan School,<br>
+        Patna, Bihar 800003, India.
+      </address>
+      <p class="phone">Phone: <a href="tel:+919155772224">+91 91557 72224</a></p>
+      <p class="note note--left">Opening hours: please call to confirm before visiting.</p>
+      <div class="actions">
+        <a class="btn btn--gold" href="tel:+919155772224">Call Now</a>
+        <a class="btn btn--ghost" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&amp;destination=Unplugged%20Dineout%2C%20Anugrah%20Narayan%20Road%2C%20Congress%20Maidan%20Road%2C%20opposite%20Vidya%20Niketan%20School%2C%20Patna%2C%20Bihar%20800003%2C%20India">Get Directions</a>
+        <a class="btn btn--wa" target="_blank" rel="noopener" href="https://wa.me/919155772224?text=Hello%20Unplugged%20Dineout%21%20I%20would%20like%20to%20know%20more%20about%20your%20menu%20and%20services.">WhatsApp Us</a>
+      </div>
+    </div>
+    <div class="mapcard reveal">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>
+      <p>Tap <strong>Get Directions</strong> to open this address in Google Maps.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Closing CTA -->
+<section class="cta" id="contact">
+  <img class="cta__bg" src="images/cta.svg" alt="" loading="lazy">
+  <div class="hero__shade"></div>
+  <div class="wrap cta__in">
+    <h2>Your Next Favourite Cafe Moment Awaits.</h2>
+    <p class="lead">Planning a visit, craving coffee, or looking for a relaxed place to spend time? Get in touch with Unplugged Dineout.</p>
+    <div class="actions actions--center">
+      <a class="btn btn--gold" href="tel:+919155772224">Call the Cafe</a>
+      <a class="btn btn--wa" target="_blank" rel="noopener" href="https://wa.me/919155772224?text=Hello%20Unplugged%20Dineout%21%20I%20would%20like%20to%20know%20more%20about%20your%20menu%20and%20services.">Chat on WhatsApp</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot__in">
+    <div>
+      <p class="foot__brand">Unplugged Dineout</p>
+      <p class="foot__hi">कैफे अनप्लग्ड डाइनआउट</p>
+      <p>Anugrah Narayan Road, Congress Maidan Road,<br>Opposite Vidya Niketan School,<br>Patna, Bihar 800003, India</p>
+      <p><a href="tel:+919155772224">+91 91557 72224</a></p>
+    </div>
+    <nav aria-label="Footer">
+      <a href="#home">Home</a><a href="#experience">Our Experience</a><a href="#menu-preview">Menu</a><a href="#gallery">Gallery</a><a href="#contact">Contact</a>
+    </nav>
+    <div class="foot__act">
+      <a class="btn btn--gold btn--sm" href="tel:+919155772224">Call</a>
+      <a class="btn btn--wa btn--sm" target="_blank" rel="noopener" href="https://wa.me/919155772224?text=Hello%20Unplugged%20Dineout%21%20I%20would%20like%20to%20know%20more%20about%20your%20menu%20and%20services.">WhatsApp</a>
+    </div>
+  </div>
+  <div class="wrap foot__bar">
+    <p>&copy; <span id="yr">2026</span> Unplugged Dineout. All rights reserved.</p>
+    <p>Demo website concept — images are illustrative; details to be confirmed with the cafe.</p>
+  </div>
+</footer>
+
+<div class="mbar" role="group" aria-label="Quick contact">
+  <a href="tel:+919155772224">Call</a>
+  <a class="mbar__wa" target="_blank" rel="noopener" href="https://wa.me/919155772224?text=Hello%20Unplugged%20Dineout%21%20I%20would%20like%20to%20know%20more%20about%20your%20menu%20and%20services.">WhatsApp</a>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var nav = document.getElementById('nav');
+  var burger = document.getElementById('burger');
+  var menu = document.getElementById('menu');
+
+  function setMenu(open) {
+    menu.classList.toggle('is-open', open);
+    burger.setAttribute('aria-expanded', String(open));
+    burger.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    document.body.classList.toggle('lock', open);
+  }
+  burger.addEventListener('click', function () {
+    setMenu(burger.getAttribute('aria-expanded') !== 'true');
+  });
+  menu.querySelectorAll('a').forEach(function (a) {
+    a.addEventListener('click', function () { setMenu(false); });
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setMenu(false); });
+
+  function onScroll() { nav.classList.toggle('nav--solid', window.scrollY > 40); }
+  onScroll();
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  var yr = document.getElementById('yr');
+  if (yr) yr.textContent = new Date().getFullYear();
+
+  var els = document.querySelectorAll('.reveal');
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
+      });
+    }, { threshold: 0.12 });
+    els.forEach(function (el) { io.observe(el); });
+  } else {
+    els.forEach(function (el) { el.classList.add('in'); });
+  }
+})();
+</script>
+</body>
+</html>
+'''
+
+FAVICON = r'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#171916"/><path d="M10 12h9v5a4.5 4.5 0 0 1-9 0v-5zm9 1.5h1.8a2.2 2.2 0 0 1 0 4.4H19" fill="none" stroke="#D8B477" stroke-width="1.6" stroke-linecap="round"/></svg>
+'''
+
+# ---- placeholder image generator (warm rooftop-light scenes) ----
+SCENES = {
+ "hero":("#0f110f","#2a1d15",70,1600,900),"intro":("#171916","#46352B",40,1000,1200),
+ "rooftop":("#12140f","#3a2c20",45,900,1100),"coffee":("#1a120d","#5a4030",35,900,1100),
+ "music":("#14110f","#3b2418",55,900,1100),"tea":("#171916","#4b3d2a",30,800,800),
+ "dessert":("#1c1411","#5c3b2e",30,800,800),"food":("#161812","#463a2a",30,800,800),
+ "g1":("#101210","#3d2f22",50,1000,1300),"g2":("#171916","#4a3a2b",40,1400,900),
+ "g3":("#1b130e","#5a4232",30,900,900),"g4":("#1a1310","#5a3b2d",30,900,900),
+ "g5":("#0f110f","#33281d",70,1400,900),"g6":("#14110f","#40281a",45,1000,1300),
+ "cta":("#0f110f","#3a2a1c",80,1800,900),
+}
+def make_images():
+    os.makedirs("images", exist_ok=True)
+    for i, (name, (c1, c2, n, w, h)) in enumerate(SCENES.items()):
+        random.seed(i * 7 + 3)
+        s = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" preserveAspectRatio="xMidYMid slice">' % (w, h),
+             '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="%s"/><stop offset="1" stop-color="%s"/></linearGradient>' % (c1, c2),
+             '<filter id="b"><feGaussianBlur stdDeviation="6"/></filter><filter id="b2"><feGaussianBlur stdDeviation="14"/></filter>',
+             '<radialGradient id="v" cx="50%" cy="55%" r="75%"><stop offset="0.5" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.55"/></radialGradient></defs>',
+             '<rect width="%d" height="%d" fill="url(#g)"/>' % (w, h)]
+        for k in range(0, w + 1, w // 12):
+            y = h * 0.18 + math.sin(k / w * math.pi * 2) * h * 0.04
+            s.append('<circle cx="%d" cy="%d" r="%d" fill="#F3D79A" opacity="0.95" filter="url(#b)"/>' % (k, y, random.randint(6, 10)))
+            s.append('<circle cx="%d" cy="%d" r="%d" fill="#D8B477" opacity="0.28" filter="url(#b2)"/>' % (k, y, random.randint(26, 44)))
+        for _ in range(n):
+            s.append('<circle cx="%d" cy="%d" r="%d" fill="%s" opacity="%.2f" filter="url(#b)"/>' % (
+                random.random() * w, random.random() * h * 0.8, random.randint(8, 38),
+                random.choice(["#D8B477", "#F3D79A", "#E9A85B", "#C98F4A"]), random.uniform(0.12, 0.5)))
+        s.append('<rect y="%d" width="%d" height="%d" fill="#0b0c0b" opacity="0.7"/>' % (h * 0.86, w, h * 0.14))
+        s.append('<rect width="%d" height="%d" fill="url(#v)"/></svg>' % (w, h))
+        open("images/%s.svg" % name, "w").write("".join(s))
+
+def run(cmd, check=True):
+    print("$", " ".join(cmd))
+    return subprocess.run(cmd, check=check)
+
+def main():
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    deploy = "--no-deploy" not in sys.argv
+    if deploy and not args:
+        sys.exit("Usage: python3 create_and_deploy.py YOUR_GITHUB_USERNAME [repo-name] [--no-deploy]")
+    user = args[0] if args else ""
+    repo = args[1] if len(args) > 1 else "unplugged-dineout"
+
+    # 1. Create the website folder
+    os.makedirs(repo, exist_ok=True)
+    os.chdir(repo)
+    open("index.html", "w", encoding="utf-8").write(HTML)
+    make_images()
+    open("images/favicon.svg", "w").write(FAVICON)
+    open(".nojekyll", "w").write("")
+    print("Website created in ./" + repo)
+    if not deploy:
+        print("Preview: cd %s && python3 -m http.server 8000" % repo)
+        return
+
+    # 2. Deploy to GitHub Pages
+    for tool in ("git", "gh"):
+        if not shutil.which(tool):
+            sys.exit(tool + " is not installed (gh: https://cli.github.com)")
+    if subprocess.run(["gh", "auth", "status"], capture_output=True).returncode != 0:
+        sys.exit("Run 'gh auth login' first, then re-run this script.")
+
+    if not os.path.isdir(".git"):
+        run(["git", "init", "-b", "main"])
+    run(["git", "add", "-A"])
+    run(["git", "commit", "-m", "Add Unplugged Dineout demo website"], check=False)
+    run(["git", "branch", "-M", "main"])
+
+    full = user + "/" + repo
+    exists = subprocess.run(["gh", "repo", "view", full], capture_output=True).returncode == 0
+    if not exists:
+        run(["gh", "repo", "create", full, "--public", "--source=.", "--remote=origin", "--push"])
+    else:
+        if subprocess.run(["git", "remote", "get-url", "origin"], capture_output=True).returncode != 0:
+            run(["git", "remote", "add", "origin", "https://github.com/%s.git" % full])
+        run(["git", "push", "-u", "origin", "main"])
+
+    # Enable Pages from the main branch (root folder)
+    api = ["gh", "api", "repos/%s/pages" % full, "-f", "source[branch]=main", "-f", "source[path]=/"]
+    if subprocess.run(["gh", "api", "-X", "POST"] + api[2:], capture_output=True).returncode != 0:
+        subprocess.run(["gh", "api", "-X", "PUT"] + api[2:], capture_output=True)
+
+    print("\nDone! Live in about a minute at: https://%s.github.io/%s/" % (user, repo))
+
+if __name__ == "__main__":
+    main()
